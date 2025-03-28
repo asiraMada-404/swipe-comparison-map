@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alcohol Use Disorders: 1996 vs 2019</title>
+    <link href="https://unpkg.com/maplibre-gl/dist/maplibre-gl.css" rel="stylesheet">
+    <script src="https://unpkg.com/maplibre-gl/dist/maplibre-gl.js"></script>
+    <link rel="icon" href="data:," /> <!-- Prevent favicon loading -->
+    <style>
+        body { margin: 0; padding: 0; width: 100%; height: 100%; }
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        #swiper {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            cursor: ew-resize;
+            background: #333;
+        }
+        #swiper-handle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: aquamarine;
+            border: 3px solid #333;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+            font-family: Arial, sans-serif;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 0.85rem;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border: 1px solid #333;
+        }
+        .map-title {
+            position: absolute;
+            top: 10px;
+            background: rgba(255,255,255,0.8);
+            box-shadow: #333 0 0 5px;
+            padding: 5px 10px;
+            border-radius: 3px;
+            z-index: 1000;
+            font-family: Arial, sans-serif;
+            transition: opacity 0.5s ease-in-out;
+        }
+        #title-left {
+            left: 40%;
+            font-family: Arial, Helvetica, sans-serif;
+            font-weight: bold;
+        }
+        #title-right {
+            left: 40%;
+            font-family: Arial, Helvetica, sans-serif;
+            font-weight: bold;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background:white;
+            padding: 20px;
+            border-radius: 5px;
+            z-index: 1001;
+            font-family: Arial, sans-serif;
+        }
+        .error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #ffdddd;
+            padding: 20px;
+            border-radius: 5px;
+            z-index: 1002;
+            font-family: Arial, sans-serif;
+            color: #d8000c;
+            max-width: 80%;
+            text-align: center;
+        }
+        .mapboxgl-ctrl-scale-line {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 3px;
+            position: absolute;
+            left: 10px;
+            bottom: 10px;
+            font-family: Arial, sans-serif;
+            font-size: 0.75rem;
+            /*padding: 1rem 1rem;*/
+        }
+        .copyright {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        .info-box {
+            position: absolute;
+            top: 1%;
+            left: 1%;
+            background: rgba(255, 255, 255, 0.594);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+            font-family: Arial, sans-serif;
+            font-size: x-small;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="map"></div>
+        <div id="swiper"><div id="swiper-handle"></div></div>
+        <div id="title-left" class="map-title">1996</div>
+        <div id="title-right" class="map-title">2019</div>
+        <div class="info-box"><footer>ℹ️ Swipe left to see the data from 2019 or right to see the data from 1996</footer></div>
+        <div class="legend">
+            <strong>Alcohol Use Disorders </strong><br><small><b>Cases per 1000 people</b></small><br><br>
+            <div class="legend-item"><div class="legend-color" style="background:#feebe2;"></div><span>&lt;16</span></div>
+            <div class="legend-item"><div class="legend-color" style="background:#fbb4b9;"></div><span>16-20</span></div>
+            <div class="legend-item"><div class="legend-color" style="background:#f768a1;"></div><span>20-24</span></div>
+            <div class="legend-item"><div class="legend-color" style="background:#c51b8a;"></div><span>24-28</span></div>
+            <div class="legend-item"><div class="legend-color" style="background:#7a0177;"></div><span>&gt;28</span></div>
+        </div>
+        <div class="mapboxgl-ctrl-scale-line"></div>
+        <div class="copyright"><small>© 2025 Adam M.P. - Geoinformatics Engineer & Tsingenopoulos V. - Geologist & GIS Engineer| Map data © Eurostat, MapLibre contributors</small></div>
+        <div id="loading" class="loading">Loading map data...</div>
+        <div id="error" class="error" style="display:none;"></div>
+    </div>
+
+    <script>
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+            console.error(message);
+        }
+
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {
+                    osm: {
+                        type: 'raster',
+                        tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                        tileSize: 256
+                    }
+                },
+                layers: [
+                    {
+                        id: 'osm-layer',
+                        type: 'raster',
+                        source: 'osm',
+                        minzoom: 0,
+                        maxzoom: 19,
+                        paint: {
+                            'raster-opacity': 0.7
+                        }
+                    }
+                ]
+            },
+            center: [10, 50],  // Center map over Europe
+            zoom: 3,
+            pitch: 30,         // Enable 3D view
+            bearing: 0,
+            antialias: true
+        });
+        // Add Navigation Controls
+        map.addControl(new maplibregl.NavigationControl());
+
+        // Add Scale Control
+        map.addControl(new maplibregl.ScaleControl({
+            maxWidth: 100,
+            unit: 'metric'
+        }), 'bottom-right');
+
+        // Store extrusion states
+        const extrusionState = {};
+
+        const COLOR_SCALE = {
+            low: '#feebe2',
+            mediumLow: '#fbb4b9',
+            medium: '#f768a1',
+            mediumHigh: '#c51b8a',
+            high: '#7a0177'
+        };
+
+        function getColorScale() {
+            return [
+                'interpolate', ['linear'], ['coalesce', ['get', 'Alcohol'], 0],
+                0, COLOR_SCALE.low, 16, COLOR_SCALE.mediumLow, 20, COLOR_SCALE.medium, 24, COLOR_SCALE.mediumHigh, 28, COLOR_SCALE.high
+            ];
+        }
+
+        map.on('load', () => {
+            // Load both datasets with error handling
+            Promise.all([
+                fetch('./eu_1996.geojson')
+                    .then(response => {
+                        if (!response.ok) throw new Error(`Failed to load 1996 data: ${response.status}`);
+                        return response.json();
+                    })
+                    .catch(error => {
+                        throw new Error(`Failed to load 1996 data: ${error.message}`);
+                    }),
+                fetch('./eu_2019.geojson')
+                    .then(response => {
+                        if (!response.ok) throw new Error(`Failed to load 2019 data: ${response.status}`);
+                        return response.json();
+                    })
+                    .catch(error => {
+                        throw new Error(`Failed to load 2019 data: ${error.message}`);
+                    })
+            ]).then(([data1996, data2019]) => {
+                // Validate GeoJSON data
+                if (!data1996 || !data1996.features || data1996.features.length === 0) {
+                    throw new Error("1996 data is empty or invalid");
+                }
+                if (!data2019 || !data2019.features || data2019.features.length === 0) {
+                    throw new Error("2019 data is empty or invalid");
+                }
+
+                console.log('Data loaded successfully');
+                document.getElementById('loading').style.display = 'none';
+                
+                // Add sources
+                map.addSource('data-1996', { 
+                    type: 'geojson', 
+                    data: data1996,
+                    promoteId: 'NAME_ENGL' // Use NAME_ENGL as feature ID if available
+                });
+                map.addSource('data-2019', { 
+                    type: 'geojson',
+                    data: data2019,
+                    promoteId: 'NAME_ENGL'
+                });
+
+                // Color scale with fallback for missing Alcohol values
+                const colorScale = getColorScale();
+
+                // Add before layer (1996)
+                map.addLayer({
+                    id: 'before-fill',
+                    type: 'fill',
+                    source: 'data-1996',
+                    paint: {
+                        'fill-color': colorScale, // Use the color scale for solid colors
+                        'fill-opacity': 1, // Fully opaque
+                        'fill-outline-color': '#000' // Black outline for polygons
+                    }
+                });
+
+                // Add after layer (2019)
+                map.addLayer({
+                    id: 'after-fill',
+                    type: 'fill',
+                    source: 'data-2019',
+                    paint: {
+                        'fill-color': colorScale, // Use the color scale for solid colors
+                        'fill-opacity': 1, // Fully opaque
+                        'fill-outline-color': '#000' // Black outline for polygons
+                    }
+                });
+
+                // Add before extrusion layer (1996)
+                map.addLayer({
+                    id: 'before-extrusion',
+                    type: 'fill-extrusion',
+                    source: 'data-1996',
+                    paint: {
+                        'fill-extrusion-color': colorScale,
+                        'fill-extrusion-height':0, // Initially flat
+                        'fill-extrusion-opacity': 1, // Fully opaque
+                        'fill-extrusion-base': 0, // Extrude from the base
+                        'fill-extrusion-vertical-gradient': true // Disable gradient
+                        //'fill-extrusion-opacity-transition': { duration: 500 },
+                        //'fill-extrusion-height-transition': { duration: 500 }
+
+                        
+                    }
+                });
+
+                // Add after extrusion layer (2019)
+                map.addLayer({
+                    id: 'after-extrusion',
+                    type: 'fill-extrusion',
+                    source: 'data-2019',
+                    paint: {
+                        'fill-extrusion-color': colorScale,
+                        'fill-extrusion-height': 0, // Initially flat
+                        'fill-extrusion-opacity': 1, // Fully opaque
+                        'fill-extrusion-base': 0, // Extrude from the base
+                        'fill-extrusion-vertical-gradient': true // Disable gradient
+                        //'fill-extrusion-opacity-transition': { duration: 500 },
+                        //'fill-extrusion-height-transition': { duration: 500 }
+                    }
+                });
+
+                // Set up swipe effect
+                setupSwipeControl();
+                
+                // Set up click interaction for extrusion
+                setupExtrusionInteraction();
+
+            }).catch(error => {
+                showError(`Error loading data: ${error.message}`);
+            });
+        });
+
+        map.on('error', (e) => {
+            showError(`Map error: ${e.error.message}`);
+        });
+
+        function setupSwipeControl() {
+            const swipe = document.getElementById('swiper');
+            const container = document.getElementById('container');
+            let isDragging = false;
+
+            // Initialize swipe position
+            let swipePosition = 50;
+            updateSwipePosition();
+
+            // Mouse events
+            swipe.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                document.body.style.cursor = 'ew-resize';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                const rect = container.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                swipePosition = (x / rect.width) * 100;
+                updateSwipePosition();
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                document.body.style.cursor = '';
+            });
+
+            // Touch events
+            swipe.addEventListener('touchstart', (e) => {
+                isDragging = true;
+                e.preventDefault();
+            });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+
+                const rect = container.getBoundingClientRect();
+                const x = e.touches[0].clientX - rect.left; // Use the first touch point
+                swipePosition = (x / rect.width) * 100;
+                updateSwipePosition();
+            });
+
+            document.addEventListener('touchend', () => {
+                isDragging = false;
+            });
+
+            function updateSwipePosition() {
+                // Constrain between 10% and 90%
+                swipePosition = Math.max(10, Math.min(90, swipePosition));
+
+                // Update swipe handle position
+                swipe.style.left = `${swipePosition}%`;
+
+                // Update map filters for before and after layers
+                map.setFilter('before-fill', ['<=', ['coalesce', ['get', 'Alcohol'], 0], swipePosition]);
+                map.setFilter('after-fill', ['>', ['coalesce', ['get', 'Alcohol'], 0], swipePosition]);
+
+                // Check if extrusion layers exist before applying filters
+                if (map.getLayer('before-extrusion') && map.getPaintProperty('before-extrusion', 'fill-extrusion-opacity') > 0) {
+                    map.setFilter('before-extrusion', ['<=', ['coalesce', ['get', 'Alcohol'], 0], swipePosition]);
+                }
+                if (map.getLayer('after-extrusion') && map.getPaintProperty('after-extrusion', 'fill-extrusion-opacity') > 0) {
+                    map.setFilter('after-extrusion', ['>', ['coalesce', ['get', 'Alcohol'], 0], swipePosition]);
+                }
+
+                // Show or hide titles based on swipe position
+                const titleLeft = document.getElementById('title-left');
+                const titleRight = document.getElementById('title-right');
+
+                if (swipePosition < 50) {
+                    titleLeft.style.display = 'block';  // Show 1996 title
+                    titleRight.style.display = 'none'; // Hide 2019 title
+                } else {
+                    titleLeft.style.display = 'none';  // Hide 1996 title
+                    titleRight.style.display = 'block'; // Show 2019 title
+                }
+            }
+        }
+
+        function setupExtrusionInteraction() {
+            // Click handler for both layers
+            map.on('click', ['before-fill', 'after-fill'], (e) => {
+                if (!e.features || e.features.length === 0) return;
+                
+                const feature = e.features[0];
+                const year = feature.source === 'data-1996' ? '1996' : '2019';
+                const featureId = feature.id || feature.properties?.NAME_ENGL || 'unknown';
+                const alcohol = feature.properties?.Alcohol || 0;
+                
+                // Toggle extrusion
+                const layerPrefix = year === '1996' ? 'before' : 'after';
+                const isExtruded = !extrusionState[`${layerPrefix}-${featureId}`];
+                
+                // Set extrusion properties
+                map.setPaintProperty(`${layerPrefix}-extrusion`, 'fill-extrusion-opacity', isExtruded ? 1 : 0);
+                map.setPaintProperty(`${layerPrefix}-extrusion`, 'fill-extrusion-height', [
+                    'case',
+                    ['==', ['id'], featureId],
+                    isExtruded ? alcohol * 10000 : 0,
+                    0
+                ]);
+                
+                extrusionState[`${layerPrefix}-${featureId}`] = isExtruded;
+                
+                // Show popup
+                new maplibregl.Popup({ offset: 25 })
+                    .setLngLat(e.lngLat)
+                    .setHTML(`
+                        <h2>${feature.properties?.NAME_ENGL || 'Unknown'} (${year})</h2>
+                                      <p>Alcohol Use Disorders (${year}): <h3> ${alcohol} <small>Cases per 1000 people</small> </h3></p>
+                                        <footer><em>Data: <a href='https://ourworldindata.org/grapher/prevalence-by-mental-and-substance-use-disorder?time=earliest..2019' target="_blank">IHME, Global Burden of Disease (2024) – with major processing by Our World in Data</em></a></footer> <br>
+                                            <footer><small>Click to ${extrusionState[featureId] ? 'flatten' : 'extrude'}</small></footer> 
+                                      `)
+                            .addTo(map);
+            });
+            
+            // Change cursor on hover
+            map.on('mouseenter', ['before-fill', 'after-fill'], () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            map.on('mouseleave', ['before-fill', 'after-fill'], () => {
+                map.getCanvas().style.cursor = '';
+            });
+        }
+    </script>
+</body>
+</html>
+``` 
