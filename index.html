@@ -358,51 +358,32 @@
             const swipe = document.getElementById('swiper');
             const container = document.getElementById('container');
             let isDragging = false;
-
+            
             // Initialize swipe position
             let swipePosition = 50;
             updateSwipePosition();
-
-            // Mouse events
+            
+            // Make swipe draggable
             swipe.addEventListener('mousedown', (e) => {
                 isDragging = true;
                 document.body.style.cursor = 'ew-resize';
                 e.preventDefault();
             });
-
+            
             document.addEventListener('mousemove', (e) => {
                 if (!isDragging) return;
-
+                
                 const rect = container.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 swipePosition = (x / rect.width) * 100;
                 updateSwipePosition();
             });
-
+            
             document.addEventListener('mouseup', () => {
                 isDragging = false;
                 document.body.style.cursor = '';
             });
-
-            // Touch events
-            swipe.addEventListener('touchstart', (e) => {
-                isDragging = true;
-                e.preventDefault();
-            });
-
-            document.addEventListener('touchmove', (e) => {
-                if (!isDragging) return;
-
-                const rect = container.getBoundingClientRect();
-                const x = e.touches[0].clientX - rect.left; // Use the first touch point
-                swipePosition = (x / rect.width) * 100;
-                updateSwipePosition();
-            });
-
-            document.addEventListener('touchend', () => {
-                isDragging = false;
-            });
-
+            
             function updateSwipePosition() {
                 // Constrain between 10% and 90%
                 swipePosition = Math.max(10, Math.min(90, swipePosition));
@@ -484,4 +465,3 @@
     </script>
 </body>
 </html>
-``` 
